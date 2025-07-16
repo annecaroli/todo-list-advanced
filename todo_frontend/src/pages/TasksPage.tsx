@@ -2,16 +2,27 @@ import React, { useState, useEffect, type FormEvent } from 'react';
 import axios from 'axios';
 import type { Task, PaginatedResponse } from '../types';
 
-const TasksPage: React.FC = () => {
+interface TasksPageProps {
+  accessToken: string;
+}
+
+const TasksPage: React.FC<TasksPageProps> = ({ accessToken }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [error, setError] = useState<string>('');
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalItems, setTotalItems] = useState<number>(0);
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'pending'>('all');
+
+  const getConfig = () => ({
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
   const fetchTasks = async () => {
     setError('');
@@ -25,74 +36,94 @@ const TasksPage: React.FC = () => {
         url += '&completed=false';
       }
 
-      const response = await axios.get<PaginatedResponse<Task>>(url);
+      const response = await axios.get<PaginatedResponse<Task>>(url, getConfig());
 
       setTasks(response.data.results);
       setTotalItems(response.data.count);
       setTotalPages(Math.ceil(response.data.count / 10));
-    } catch (err) {
-      setError('Erro ao carregar tarefas. Verifique sua conexão ou tente mais tarde.');
+    } catch (err: any) {
+      console.error("Erro ao buscar tarefas:", err.response?.data || err.message);
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        setError('Sessão expirada ou não autorizado. Por favor, faça login novamente.');
+      } else {
+        setError('Erro ao carregar tarefas. Verifique sua conexão ou tente mais tarde.');
+      }
       setTasks([]);
     }
   };
 
   useEffect(() => {
-    fetchTasks();
-  }, [currentPage, filterStatus]);
+    if (accessToken) {
+      fetchTasks();
+    }
+  }, [currentPage, filterStatus, accessToken]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
+    const taskData: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'user'> = {
       title,
       description,
       completed: false,
     };
 
     try {
-      let response;
       if (editingTask) {
-        response = await axios.put<Task>(`/api/tasks/${editingTask.id}/`, {
+        await axios.put<Task>(`/api/tasks/${editingTask.id}/`, {
           ...taskData,
           completed: editingTask.completed,
-        });
+        }, getConfig());
         setEditingTask(null);
       } else {
-        response = await axios.post<Task>('/api/tasks/', taskData);
-        setCurrentPage(1);
+        await axios.post<Task>('/api/tasks/', taskData, getConfig());
       }
       setTitle('');
       setDescription('');
       fetchTasks();
-    } catch (err) {
-      setError('Erro ao salvar tarefa. Verifique os dados e tente novamente.');
+    } catch (err: any) {
+      console.error("Erro ao salvar tarefa:", err.response?.data || err.message);
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        setError('Sessão expirada ou não autorizado. Por favor, faça login novamente.');
+      } else {
+        setError('Erro ao salvar tarefa. Verifique os dados e tente novamente.');
+      }
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`/api/tasks/${id}/`);
+      await axios.delete(`/api/tasks/${id}/`, getConfig());
       if (tasks.length === 1 && currentPage > 1) {
           setCurrentPage(prev => prev - 1);
       } else {
           fetchTasks();
       }
       setError('');
-    } catch (err) {
-      setError('Erro ao excluir tarefa. Tente novamente.');
+    } catch (err: any) {
+      console.error("Erro ao excluir tarefa:", err.response?.data || err.message);
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        setError('Sessão expirada ou não autorizado. Por favor, faça login novamente.');
+      } else {
+        setError('Erro ao excluir tarefa. Tente novamente.');
+      }
     }
   };
 
   const toggleComplete = async (taskToToggle: Task) => {
     try {
-      const response = await axios.patch<Task>(`/api/tasks/${taskToToggle.id}/`, {
+      await axios.patch<Task>(`/api/tasks/${taskToToggle.id}/`, {
         completed: !taskToToggle.completed,
-      });
+      }, getConfig());
       fetchTasks();
       setError('');
-    } catch (err) {
-      setError('Erro ao atualizar status da tarefa.');
+    } catch (err: any) {
+      console.error("Erro ao atualizar status:", err.response?.data || err.message);
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        setError('Sessão expirada ou não autorizado. Por favor, faça login novamente.');
+      } else {
+        setError('Erro ao atualizar status da tarefa.');
+      }
     }
   };
 
@@ -119,6 +150,10 @@ const TasksPage: React.FC = () => {
       setCurrentPage(prev => prev + 1);
     }
   };
+
+  if (!accessToken) {
+    return <p>Por favor, faça login para ver suas tarefas.</p>;
+  }
 
   return (
     <div>
