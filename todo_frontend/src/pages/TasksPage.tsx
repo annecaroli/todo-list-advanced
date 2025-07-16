@@ -1,8 +1,6 @@
-// todo_frontend/src/pages/TasksPage.tsx
 import React, { useState, useEffect, type FormEvent } from 'react';
-import axios, { type AxiosResponse } from 'axios';
-import type { Task } from '../types'; // Importa a interface Task
- // Importa a interface Task
+import axios from 'axios';
+import type { Task, PaginatedResponse } from '../types';
 
 const TasksPage: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -10,21 +8,37 @@ const TasksPage: React.FC = () => {
   const [description, setDescription] = useState<string>('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [error, setError] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'pending'>('all');
 
   const fetchTasks = async () => {
+    setError('');
+
     try {
-      const response = await axios.get<Task[]>('/api/tasks/');
-      setTasks(response.data);
-      setError('');
+      let url = `/api/tasks/?page=${currentPage}`;
+
+      if (filterStatus === 'completed') {
+        url += '&completed=true';
+      } else if (filterStatus === 'pending') {
+        url += '&completed=false';
+      }
+
+      const response = await axios.get<PaginatedResponse<Task>>(url);
+
+      setTasks(response.data.results);
+      setTotalItems(response.data.count);
+      setTotalPages(Math.ceil(response.data.count / 10));
     } catch (err) {
-      console.error("Erro ao buscar tarefas:", err);
-      setError('Erro ao carregar tarefas. Tente novamente mais tarde.');
+      setError('Erro ao carregar tarefas. Verifique sua conexão ou tente mais tarde.');
+      setTasks([]);
     }
   };
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [currentPage, filterStatus]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -37,20 +51,20 @@ const TasksPage: React.FC = () => {
     };
 
     try {
-      let response: AxiosResponse<Task, any>;
+      let response;
       if (editingTask) {
         response = await axios.put<Task>(`/api/tasks/${editingTask.id}/`, {
           ...taskData,
-          completed: editingTask.completed, // Mantém o status de conclusão existente
+          completed: editingTask.completed,
         });
-        setTasks(tasks.map((task) => (task.id === editingTask.id ? response.data : task)));
         setEditingTask(null);
       } else {
         response = await axios.post<Task>('/api/tasks/', taskData);
-        setTasks([...tasks, response.data]);
+        setCurrentPage(1);
       }
       setTitle('');
       setDescription('');
+      fetchTasks();
     } catch (err) {
       setError('Erro ao salvar tarefa. Verifique os dados e tente novamente.');
     }
@@ -59,25 +73,25 @@ const TasksPage: React.FC = () => {
   const handleDelete = async (id: number) => {
     try {
       await axios.delete(`/api/tasks/${id}/`);
-      setTasks(tasks.filter((task) => task.id !== id));
+      if (tasks.length === 1 && currentPage > 1) {
+          setCurrentPage(prev => prev - 1);
+      } else {
+          fetchTasks();
+      }
       setError('');
     } catch (err) {
-      console.error("Erro ao excluir tarefa:", err);
       setError('Erro ao excluir tarefa. Tente novamente.');
     }
   };
 
-  // Função para MARCAR/DESMARCAR tarefa como concluída (PATCH)
-  // Agora será chamada pelo onChange do checkbox
   const toggleComplete = async (taskToToggle: Task) => {
     try {
       const response = await axios.patch<Task>(`/api/tasks/${taskToToggle.id}/`, {
-        completed: !taskToToggle.completed, // Inverte o status atual
+        completed: !taskToToggle.completed,
       });
-      setTasks(tasks.map((task) => (task.id === taskToToggle.id ? response.data : task)));
+      fetchTasks();
       setError('');
     } catch (err) {
-      console.error("Erro ao atualizar status:", err);
       setError('Erro ao atualizar status da tarefa.');
     }
   };
@@ -92,6 +106,18 @@ const TasksPage: React.FC = () => {
     setEditingTask(null);
     setTitle('');
     setDescription('');
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
   };
 
   return (
@@ -123,21 +149,36 @@ const TasksPage: React.FC = () => {
         )}
       </form>
 
-      <h2>Lista de Tarefas</h2>
-      {tasks.length === 0 ? (
-        <p>Nenhuma tarefa encontrada. Adicione uma nova!</p>
+      <div className="filters">
+        <label htmlFor="filterStatus">Filtrar por Status:</label>
+        <select
+          id="filterStatus"
+          value={filterStatus}
+          onChange={(e) => {
+            setFilterStatus(e.target.value as 'all' | 'completed' | 'pending');
+            setCurrentPage(1);
+          }}
+        >
+          <option value="all">Todas</option>
+          <option value="completed">Concluídas</option>
+          <option value="pending">Pendentes</option>
+        </select>
+      </div>
+
+      <h2>Lista de Tarefas ({totalItems} itens no total)</h2>
+      {tasks.length === 0 && !error ? (
+        <p>Nenhuma tarefa encontrada com o filtro atual.</p>
       ) : (
         <ul>
           {tasks.map((task) => (
             <li key={task.id} className={task.completed ? 'completed' : ''}>
-              <div className="task-content"> {/* Novo div para o conteúdo da tarefa */}
-                {/* Checkbox para marcar/desmarcar conclusão */}
+              <div className="task-content">
                 <input
                   type="checkbox"
                   checked={task.completed}
-                  onChange={() => toggleComplete(task)} // Chama toggleComplete no clique do checkbox
+                  onChange={() => toggleComplete(task)}
                 />
-                <div> {/* Envolve título e descrição */}
+                <div>
                   <h3>{task.title}</h3>
                   {task.description && <p>{task.description}</p>}
                   <small>Criado em: {new Date(task.created_at).toLocaleString()}</small>
@@ -150,6 +191,18 @@ const TasksPage: React.FC = () => {
             </li>
           ))}
         </ul>
+      )}
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button onClick={goToPreviousPage} disabled={currentPage === 1}>
+            Anterior
+          </button>
+          <span>Página {currentPage} de {totalPages}</span>
+          <button onClick={goToNextPage} disabled={currentPage === totalPages}>
+            Próxima
+          </button>
+        </div>
       )}
     </div>
   );
