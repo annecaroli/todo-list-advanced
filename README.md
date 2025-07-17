@@ -81,10 +81,5 @@ Antes de iniciar a aplicação, certifique-se de ter o seguinte software instala
     ```bash
     docker-compose up -d
     ```
-5. **Aplicar Migrações do Banco de Dados**
-    ```bash
-    docker-compose exec backend python manage.py makemigrations
-    docker-compose exec backend python manage.py migrate
-    ```
-6. **Acessar a Aplicação**
+5. **Acessar a Aplicação**
 Com todos os serviços rodando e as migrações aplicadas, sua aplicação estará acessível no seguinte endereço: http://localhost/
