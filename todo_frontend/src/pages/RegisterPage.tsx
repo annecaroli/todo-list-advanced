@@ -27,6 +27,9 @@ const RegisterPage: React.FC = () => {
       setUsername('');
       setEmail('');
       setPassword('');
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (err: any) {
       console.error('Erro de registro:', err.response?.data || err.message);
       if (err.response && err.response.data) {

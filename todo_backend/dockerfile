@@ -1,0 +1,42 @@
+FROM python:3.11-slim-bullseye
+
+# Define variáveis de ambiente para a aplicação
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Define o diretório de trabalho dentro do contêiner
+WORKDIR /app
+
+# --- ADICIONE ESTAS LINHAS AQUI ---
+# Instala as dependências de sistema para psycopg2
+RUN apt-get update && \
+    apt-get install -y gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+# ----------------------------------
+
+# Copia o arquivo de dependências (requirements.txt) para o contêiner
+# e instala as dependências antes de copiar o resto do código.
+# Isso otimiza o cache do Docker.
+COPY todo_backend/requirements.txt ./todo_backend/
+
+# Instala as dependências Python
+RUN pip install --no-cache-dir -r ./todo_backend/requirements.txt
+
+# Atualiza a lista de pacotes e instala netcat-traditional
+# Limpeza do cache APT na mesma camada para reduzir o tamanho da imagem
+RUN apt-get update \
+    && apt-get install -y netcat-traditional \
+    && rm -rf /var/lib/apt/lists/* # <--- Adicione esta limpeza de cache
+# -------------------------------------
+
+# Copia o restante do código da aplicação para o contêiner
+# COPY . /app/
+
+# Expõe a porta que o Django vai rodar (padrão 8000)
+EXPOSE 8000
+
+# Comando para iniciar o servidor Django
+# Usa um entrypoint.sh para aplicar migrações e depois rodar o servidor
+CMD ["/app/entrypoint.sh"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:14-alpine # Imagem oficial do PostgreSQL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/ # Persiste os dados do banco
+    environment: # Variáveis de ambiente para o banco de dados
+      POSTGRES_DB: todo_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    restart: always # Reinicia o serviço se ele parar
+
+  backend:
+    build: 
+      context: .
+      dockerfile: ./todo_backend/Dockerfile
+    #command: sh -c "/app/entrypoint.sh python manage.py runserver 0.0.0.0:8000" # Sobrescreve o CMD do Dockerfile para usar o entrypoint
+    volumes:
+      - .:/app
+      - ./todo_backend/entrypoint.sh:/app/entrypoint.sh
+    expose:
+      - 8000 # Expõe a porta 8000 para outros serviços na rede Docker
+    depends_on:
+      - db # Garante que o DB inicie antes do backend
+    restart: on-failure
+
+  frontend:
+    build: ./todo_frontend # Constrói a imagem Docker a partir do Dockerfile na pasta todo_frontend
+    ports:
+      - "80:80" # Mapeia a porta 80 do contêiner para a porta 80 do host (ou outra, ex: "3000:80")
+    volumes:
+      - ./todo_frontend:/app # Mapeia o código do host para o contêiner
+    depends_on:
+      - backend # Garante que o backend inicie antes do frontend
+    # Não precisa de env_file aqui pois a comunicação com a API é via proxy Nginx
+
+volumes:
+  postgres_data: # Define o volume para persistência dos dados do PostgreSQL
