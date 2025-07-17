@@ -79,7 +79,11 @@ Antes de iniciar a aplicação, certifique-se de ter o seguinte software instala
     ```
 4.  **Iniciar a Aplicação**
     ```bash
-    docker-compose up -d
+    docker-compose up
     ```
 5. **Acessar a Aplicação**
 Com todos os serviços rodando e as migrações aplicadas, sua aplicação estará acessível no seguinte endereço: http://localhost/
+
+## Extra
+
+CSS gerado pelo Gemini
