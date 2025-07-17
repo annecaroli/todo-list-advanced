@@ -58,10 +58,7 @@ Aqui estão os principais endpoints da API Django que o frontend consome:
 Antes de iniciar a aplicação, certifique-se de ter o seguinte software instalado em sua máquina:
 
 * Python 3.9+
-* pip
-* Node.js 20+
-* npm
-* PostgreSQL
+* VSCode
 * Docker Desktop
 
 ## Como Baixar e Rodar a Aplicação
@@ -70,18 +67,24 @@ Antes de iniciar a aplicação, certifique-se de ter o seguinte software instala
     ```bash
     git clone https://github.com/annecaroli/todo-list-advanced
     ```
-2.  **Construir as Imagens Docker**
+2. Abrir código no VSCode
+    ```bash
+    cd todo-list-advanced
+    code .
+    ```
+    Assim que o vscode iniciar, abra um terminal para continuar no próximo passo
+3.  **Construir as Imagens Docker**
     ```bash
     docker-compose build --no-cache
     ```
-3.  **Iniciar a Aplicação**
+4.  **Iniciar a Aplicação**
     ```bash
     docker-compose up -d
     ```
-4. **Aplicar Migrações do Banco de Dados**
+5. **Aplicar Migrações do Banco de Dados**
     ```bash
     docker-compose exec backend python manage.py makemigrations
     docker-compose exec backend python manage.py migrate
     ```
-5. **Acessar a Aplicação**
-Com todos os serviços rodando e as migrações aplicadas, sua aplicação estará acessível no seguinte endereço: http://localhost:3000/
+6. **Acessar a Aplicação**
+Com todos os serviços rodando e as migrações aplicadas, sua aplicação estará acessível no seguinte endereço: http://localhost/
